@@ -1,0 +1,72 @@
+<!DOCTYPE HTML>
+<html>
+  <head>
+  <meta charset=utf-8>
+  <title></title>
+  <script type="text/javascript">
+
+    if (typeof(PIAO)=="undefined") PIAO = {};
+    
+    var gTargetHomepage = "https://dynamic.12306.cn/otsweb/loginAction.do";
+    
+    (function(){
+      //init
+      window.addEventListener('load',function() {
+        PIAO.plugin=document.getElementById('pluginId');
+        chrome.browserAction.setIcon({ path: "piao.png" });
+      },false);
+      
+      // message from content script
+      chrome.extension.onRequest.addListener(
+        function(request, sender, sendResponse) {
+          if (request.active) {
+            chrome.management.getAll( function(items) {
+              var exist="no";
+              for(var i in items) {
+                if(request.active== items[i].id) {
+                  if(items[i].enabled) exist="yes";
+                  break;
+                }
+              }
+              sendResponse({ret: exist});
+            });
+          }
+      });
+      
+    })();
+    
+    function goToUrl(targetUrl) {
+      if(targetUrl==undefined) return;
+      chrome.tabs.getSelected(undefined, function(tab) {
+        if (tab && tab.url && !tab.incognito && tab.url.indexOf("chrome://newtab")==0) {
+          chrome.tabs.update(tab.id, {url: targetUrl});
+        } else {
+          chrome.tabs.create({ url: targetUrl });
+        }
+      });
+    }
+    
+    function isInstalled() {
+      var ret = false;
+      if(PIAO.plugin && PIAO.plugin.IsInstalled)
+        ret = PIAO.plugin.IsInstalled();
+      if(ret) goToUrl(gTargetHomepage);
+      return ret;
+    }
+    
+    function installCert() {
+      var ret = false;
+      if(PIAO.plugin && PIAO.plugin.Install)
+        ret = PIAO.plugin.Install();
+      if(ret) goToUrl(gTargetHomepage);
+      return ret;
+    }
+
+  </script>
+  </head>
+  
+<body>
+<embed id="pluginId" type="application/x-np-piao"></embed>
+</body>
+</html>
+
