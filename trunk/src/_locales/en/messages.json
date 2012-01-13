@@ -1,0 +1,5 @@
+{
+  "name": {"message": "12306.cn helper"},
+  "description": {"message": "Help to get the ticket from 12306.cn"},
+  "default_title": {"message": "12306.cn helper"}
+}

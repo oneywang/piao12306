@@ -1,0 +1,5 @@
+﻿{
+  "name": {"message": "火车票刷票机"},
+  "description": {"message": "一键安装12306官网证书，自动刷火车票。"},
+  "default_title": {"message": "自动刷火车票"}
+}

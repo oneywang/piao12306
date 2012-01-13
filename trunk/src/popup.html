@@ -1,0 +1,57 @@
+<!DOCTYPE HTML>
+<html>
+  <head>
+    <meta charset=utf-8>
+    <style type="text/css" media="screen">
+    body { width: 240px; margin: 0; padding: 0; background: #fff; font-family:  "微软雅黑", 'trebuchet ms', trebuchet, verdana, '宋体' }
+    div,pre { margin:0; padding:0;}
+    #content{
+      margin: 5px 15px;
+      height: 160px;
+      color: #777;
+      font-size: 10pt;
+    }
+
+    #content #more {
+      margin-left: 30px;
+    }
+    
+    #content #more a{
+      color:#777;
+      text-decoration: none;
+    }
+
+    #content #more a:hover {
+      color:#000;
+    }
+
+</style>
+<script type="text/javascript">
+function init() {
+	var bg=chrome.extension.getBackgroundPage();
+  if(!bg) return;
+  if(false == bg.isInstalled()) {
+    document.getElementById("more").onclick = function(){
+      if(bg.installCert())window.close();
+      else {
+        alert("抱歉：自动安装铁道部证书失败，请手工下载安装。");
+        bg.goToUrl("http://www.12306.cn");
+        window.close();
+      }
+    }
+  } else {
+    window.close();
+  }
+}
+
+</script>
+</head>
+<body onload="init()">
+	<div id="content">
+    <p>提示：检测到您需要先安装铁道部官方证书才能继续使用。</p>
+    <p>安装成功后，会自动帮您打开铁道部官方登录页面。</p>
+    <hr>
+    <p id="more"><a href="#"><img src="install.png" title="安装证书" alt="安装证书" /></a></p>
+  </div>
+</body>
+</html>
