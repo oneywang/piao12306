@@ -195,10 +195,6 @@
 				>
 			</File>
 			<File
-				RelativePath=".\log.cc"
-				>
-			</File>
-			<File
 				RelativePath=".\npn_entry.cc"
 				>
 			</File>
@@ -234,10 +230,6 @@
 			</File>
 			<File
 				RelativePath=".\helper_script_object.h"
-				>
-			</File>
-			<File
-				RelativePath=".\log.h"
 				>
 			</File>
 			<File
