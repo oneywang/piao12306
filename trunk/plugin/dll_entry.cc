@@ -1,10 +1,27 @@
+/*
+ *  12306 Booking Helper Extension for Google Chrome and Chrome-base browsers such as 360chrome.
+ *  Copyright (C) 2012 Landman
+ * 
+ *  This program is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ * 
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ * 
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * 
+ */
 #include "stdafx.h"
-#include "log.h"
 #include "npfunctions.h"
 #include "plugin_factory.h"
 
 HMODULE g_hMod;
-Log g_Log;
+//Log g_Log;
 
 extern NPNetscapeFuncs* g_NpnFuncs;
 
@@ -12,15 +29,15 @@ BOOL OSCALL DllMain(HMODULE hModule, DWORD reason, LPVOID lpReserved) {
   g_hMod = hModule;
   switch(reason) {
     case DLL_PROCESS_ATTACH:
-      g_Log.OpenLog("Notify");
-      g_Log.WriteLog("Msg","DLL_PROCESS_ATTACH");
+      //g_Log.OpenLog("Notify");
+      //g_Log.WriteLog("Msg","DLL_PROCESS_ATTACH");
       break;
     case DLL_THREAD_ATTACH:
       break;
     case DLL_THREAD_DETACH:
       break;
     case DLL_PROCESS_DETACH:
-      g_Log.WriteLog("Msg","DLL_PROCESS_DETACH");
+      //g_Log.WriteLog("Msg","DLL_PROCESS_DETACH");
       break;
   }
   return TRUE;

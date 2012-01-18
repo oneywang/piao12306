@@ -1,12 +1,15 @@
 ﻿/*
- *  12306 Auto Query => A javascript snippet to help you book tickets online.
+ *  12306 Booking Helper Extension for Google Chrome and Chrome-base browsers such as 360chrome.
+ *  Copyright (C) 2012 Landman
+ * 
+ *  Includes 12306 Auto Query => A javascript snippet to help you book tickets online.
  *  12306 Booking Assistant
  *  Copyright (C) 2011 Hidden
  * 
- *  12306 Auto Query => A javascript snippet to help you book tickets online.
+ *  Includes 12306 Auto Query => A javascript snippet to help you book tickets online.
  *  Copyright (C) 2011 Jingqin Lynn
  * 
- *  12306 Auto Login => A javascript snippet to help you auto login 12306.com.
+ *  Includes 12306 Auto Login => A javascript snippet to help you auto login 12306.com.
  *  Copyright (C) 2011 Kevintop
  * 
  *  Includes jQuery
@@ -31,13 +34,11 @@
 
 // ==UserScript==  
 // @name         12306 Booking Assistant
-// @version		 1.3.4
+// @version		 1.3.9
 // @author       zzdhidden@gmail.com
 // @namespace    https://github.com/zzdhidden
 // @description  12306 订票助手之(自动登录，自动查票，自动订单)
-// @include      *://dynamic.12306.cn/otsweb/loginAction.do*
-// @include		 *://dynamic.12306.cn/otsweb/order/querySingleAction.do*
-// @include		 *://dynamic.12306.cn/otsweb/order/confirmPassengerAction.do*
+// @include      *://dynamic.12306.cn/otsweb/*
 // @require	https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js
 // ==/UserScript== 
 
@@ -116,49 +117,47 @@ withjQuery1(function($, window){
 	}
 
 
-	route("querySingleAction.do", function() {
+	function query() {
 
 		//query
 		var isTicketAvailable = false;
 
-		//The table for displaying tickets
-		var tbl = $(".obj")[0];
-		if( tbl.addEventListener ) {
-			// Not work on IE
-			tbl.addEventListener("DOMNodeInserted", function(event) {
-				if(checkTickets(event.target)){
+		var firstRemove = false;
+
+		window.$ && window.$(".obj:first").ajaxComplete(function() {
+			$(this).find("tr").each(function(n, e) {
+				if(checkTickets(e)){
 					isTicketAvailable = true;
-					highLightRow(event.target);
-				}
-				tbl.firstAppend=false;
-			}, true);
-		} else {
-			window.$ && window.$(tbl).ajaxComplete(function() {
-				$(this).find("tr").each(function(n, e) {
-					if(checkTickets(e)){
-						isTicketAvailable = true;
-						highLightRow(e);
-					}	
-				});
-				if(g.firstRemove) {
-					g.firstRemove = false;
-					if (isTicketAvailable) {
-						if (isAutoQueryEnabled)
-							document.getElementById("refreshButton").click();
-						onticketAvailable(); //report
-					}
-					else {
-						//wait for the button to become valid
-					}
-				}
+					highLightRow(e);
+				}	
 			});
+			if(firstRemove) {
+				firstRemove = false;
+				if (isTicketAvailable) {
+					if (isAutoQueryEnabled)
+						document.getElementById("refreshButton").click();
+					onticketAvailable(); //report
+				}
+				else {
+					//wait for the button to become valid
+				}
+			}
+		}).ajaxError(function() {
+			if(isAutoQueryEnabled) doQuery();
+		});
+
+		//hack into the validQueryButton function to detect query
+		var _delayButton = window.delayButton;
+
+		window.delayButton = function() {
+			_delayButton();
+			if(isAutoQueryEnabled) doQuery();
 		}
 
 		//Trigger the button
 		var doQuery = function() {
 			displayQueryTimes(queryTimes++);
-			tbl.firstAppend = true;
-			g.firstRemove = true;
+			firstRemove = true;
 			document.getElementById(isStudentTicket ? "stu_submitQuery" : "submitQuery").click();
 		}
 
@@ -190,32 +189,6 @@ withjQuery1(function($, window){
 			return hasTicket;
 		}
 
-		//The box into which the message is inserted.
-		var g = document.getElementById("gridbox");
-		//When the message is removed, the query should be completed.
-		if( g.addEventListener ) {
-			g.addEventListener("DOMNodeRemoved", function(event) {
-				if(g.firstRemove) {
-					g.firstRemove = false;
-					if (isTicketAvailable) {
-						if (isAutoQueryEnabled)
-							document.getElementById("refreshButton").click();
-						onticketAvailable(); //report
-					}
-					else {
-						//wait for the button to become valid
-					}
-				}
-			}, true);
-		}
-
-		//hack into the validQueryButton function to detect query
-		var _validQueryButton = window.validQueryButton;
-
-		window.validQueryButton = function() {
-			_validQueryButton();
-			if(isAutoQueryEnabled) doQuery();
-		}
 
 		var queryTimes = 0; //counter
 		var isAutoQueryEnabled = false; //enable flag
@@ -319,7 +292,12 @@ withjQuery1(function($, window){
 				ticketType[this.ticketTypeId] = this.checked;
 			}).appendTo(e);
 		});
-	});
+	}
+
+	route("querySingleAction.do", query);
+	route("myOrderAction.do?method=resign", query);
+	route("confirmPassengerResignAction.do?method=cancelOrderToQuery", query);
+
 	route("loginAction.do?method=init", function() {
 		if( !window.location.href.match( /init$/i ) ) {
 			return;
@@ -357,17 +335,23 @@ withjQuery1(function($, window){
 				//cache: false,
 				//async: false,
 				success: function(msg){
+					//密码输入错误
+					//您的用户已经被锁定
 					if ( msg.indexOf('请输入正确的验证码') > -1 ) {
 						alert('请输入正确的验证码！');
-					}
-					else if ( msg.indexOf('当前访问用户过多') > -1 || msg.match(/var\s+isLogin\s*=\s*false/i)) {
-						//Fix: Issue #5
+					} else if ( msg.indexOf('当前访问用户过多') > -1 ){
 						reLogin();
-					}
-					else {
+					} else if( msg.match(/var\s+isLogin\s*=\s*true/i) ) {
 						notify('登录成功，开始查询车票吧！');
 						window.location.replace( queryurl );
-					};
+					} else {
+						msg = msg.match(/var\s+message\s*=\s*"([^"]*)/);
+						if( msg && msg[1] ) {
+							alert( msg && msg[1] );
+						} else {
+							reLogin();
+						}
+					}
 				},
 				error: function(msg){
 					reLogin();
@@ -379,7 +363,7 @@ withjQuery1(function($, window){
 		function reLogin(){
 			count ++;
 			$('#refreshButton').html("("+count+")次登录中...");
-			setTimeout(submitForm, 2000);
+			setTimeout(submitForm, 50);
 		}
 		//初始化
 		$("#subLink").after($("<a href='#' style='padding: 5px 10px; background: #2CC03E;border-color: #259A33;border-right-color: #2CC03E;border-bottom-color:#2CC03E;color: white;border-radius: 5px;text-shadow: -1px -1px 0 rgba(0, 0, 0, 0.2);'/>").attr("id", "refreshButton").html("自动登录").click(function() {
@@ -441,8 +425,20 @@ withjQuery1(function($, window){
 
 					if( msg.indexOf('payButton') > -1 ) {
 						//Success!
-						notify("车票预订成功，恭喜!");
-						window.location.replace(userInfoUrl);
+						var audio;
+						if( window.Audio ) {
+							audio = new Audio("http://www.w3school.com.cn/i/song.ogg");
+							audio.loop = true;
+							audio.play();
+						}
+						notify("恭喜，车票预订成！", null, true);
+						setTimeout(function() {
+							if( confirm("车票预订成，去付款？") ){
+								window.location.replace(userInfoUrl);
+							} else {
+								if(audio && !audio.paused) audio.pause();
+							}
+						}, 100);
 						return;
 					}else if(msg.indexOf('未处理的订单') > -1){
 						notify("有未处理的订单!");
@@ -453,6 +449,7 @@ withjQuery1(function($, window){
 						'用户过多'
 					  , '确认客票的状态后再尝试后续操作'
 					  ,	'请不要重复提交'
+					  , '没有足够的票!'
 					];
 					for (var i = reTryMessage.length - 1; i >= 0; i--) {
 						if( msg.indexOf( reTryMessage[i] ) > -1 ) {
@@ -473,7 +470,7 @@ withjQuery1(function($, window){
 			if( !doing )return;
 			count ++;
 			$msg.html("("+count+")次自动提交中... " + (msg || ""));
-			timer = setTimeout( submitForm, freq || 500 );
+			timer = setTimeout( submitForm, freq || 50 );
 		}
 		function stop ( msg ) {
 			doing = false;
@@ -507,7 +504,7 @@ withjQuery1(function($, window){
 					//doing
 					stop();
 				} else {
-					if( window.submit_form_check && !submit_form_check("confirmPassenger") ) {
+					if( window.submit_form_check && !window.submit_form_check("confirmPassenger") ) {
 						return;
 					}
 					count = 0;
@@ -518,7 +515,7 @@ withjQuery1(function($, window){
 				return false;
 			}));
 			$(".tj_btn").append("自动提交频率：")
-				.append($("<select id='freq'><option value='500' >频繁</option><option value='1000' selected='' >正常</option><option value='2000' >缓慢</option></select>").change(function() {
+				.append($("<select id='freq'><option value='50' >频繁</option><option value='500' selected='' >正常</option><option value='2000' >缓慢</option></select>").change(function() {
 					freq = parseInt( $(this).val() );
 				}))
 				.append($msg);

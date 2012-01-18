@@ -1,3 +1,21 @@
+/*
+ *  12306 Booking Helper Extension for Google Chrome and Chrome-base browsers such as 360chrome.
+ *  Copyright (C) 2012 Landman
+ * 
+ *  This program is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ * 
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ * 
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * 
+ */
 #include "stdafx.h"
 
 namespace  utils{
@@ -101,40 +119,6 @@ string& ReplaceAllDistinct(string& str, string const& old_value, string const& n
 #include <Psapi.h>
 #pragma comment(lib, "version.lib")
 #pragma comment(lib, "Psapi.lib")
-//BOOL _GetFileVersion(LPCTSTR strFile, LPTSTR pszVersion, int nVersionLen )
-//{
-//  DWORD dwVerSize;
-//  DWORD dwHandle;
-//  void* bufVer;
-//  BOOL bReturn=FALSE;
-//
-//  *pszVersion = _T('\0');
-//
-//  dwVerSize=GetFileVersionInfoSize(strFile,&dwHandle);
-//  if(dwVerSize == 0)
-//    return FALSE;
-//
-//  bufVer=malloc(dwVerSize);
-//  if(!bufVer)
-//    return FALSE;
-//
-//  if(GetFileVersionInfo(strFile,0,dwVerSize,bufVer))
-//  {
-//    VS_FIXEDFILEINFO* pInfo;
-//    unsigned int nInfoLen;
-//
-//    bReturn=VerQueryValue(bufVer, _T("\\"),(void**)&pInfo,&nInfoLen);
-//
-//    _snwprintf( pszVersion, nVersionLen, _T("%d.%d.%d.%d"),
-//      HIWORD( pInfo->dwFileVersionMS ), LOWORD( pInfo->dwFileVersionMS ),
-//      HIWORD( pInfo->dwFileVersionLS ), LOWORD( pInfo->dwFileVersionLS ) );
-//  }
-//  free(bufVer);
-//
-//  return bReturn;
-//}
-//
-
 wstring GetExePathFromHWnd(HWND HWnd)
 {
   wstring path;
