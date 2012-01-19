@@ -34,7 +34,7 @@
 
 // ==UserScript==  
 // @name         12306 Booking Assistant
-// @version		 1.3.9
+// @version		 1.3.10
 // @author       zzdhidden@gmail.com
 // @namespace    https://github.com/zzdhidden
 // @description  12306 订票助手之(自动登录，自动查票，自动订单)
@@ -363,7 +363,7 @@ withjQuery1(function($, window){
 		function reLogin(){
 			count ++;
 			$('#refreshButton').html("("+count+")次登录中...");
-			setTimeout(submitForm, 50);
+			setTimeout(submitForm, 2000);
 		}
 		//初始化
 		$("#subLink").after($("<a href='#' style='padding: 5px 10px; background: #2CC03E;border-color: #259A33;border-right-color: #2CC03E;border-bottom-color:#2CC03E;color: white;border-radius: 5px;text-shadow: -1px -1px 0 rgba(0, 0, 0, 0.2);'/>").attr("id", "refreshButton").html("自动登录").click(function() {
@@ -376,7 +376,9 @@ withjQuery1(function($, window){
 
 		alert('如果使用自动登录功能，请输入用户名、密码及验证码后，点击自动登录，系统会尝试登录，直至成功！');
 	});
-	route("confirmPassengerAction.do", function() {
+	route("confirmPassengerAction.do", submit);
+	route("confirmPassengerResignAction.do", submit);
+	function submit() {
 		/**
 		 * Auto Submit Order
 		 * From: https://gist.github.com/1577671
@@ -450,6 +452,7 @@ withjQuery1(function($, window){
 					  , '确认客票的状态后再尝试后续操作'
 					  ,	'请不要重复提交'
 					  , '没有足够的票!'
+					  , '车次不开行'
 					];
 					for (var i = reTryMessage.length - 1; i >= 0; i--) {
 						if( msg.indexOf( reTryMessage[i] ) > -1 ) {
@@ -486,15 +489,15 @@ withjQuery1(function($, window){
 
 		if($("#refreshButton").size()<1){
 
-		//	//重置后加载所有席别
-		//	$("select[name$='_seat']").each(function(){this.blur(function(){
-		//		alert(this.attr("id") + "blur");
-		//	})});
-		////初始化所有席别
-		//$(".qr_box :checkbox[name^='checkbox']").each(function(){$(this).click(reloadSeat)});
-		//reloadSeat();
+			//	//重置后加载所有席别
+			//	$("select[name$='_seat']").each(function(){this.blur(function(){
+			//		alert(this.attr("id") + "blur");
+			//	})});
+			////初始化所有席别
+			//$(".qr_box :checkbox[name^='checkbox']").each(function(){$(this).click(reloadSeat)});
+			//reloadSeat();
 
-		//日期可选
+			//日期可选
 
 			//$("td.bluetext:first").html('<input type="text" name="orderRequest.train_date" value="' +$("td.bluetext:first").html()+'" id="startdatepicker" style="width: 150px;" class="input_20txt"  onfocus="WdatePicker({firstDayOfWeek:1})" />');
 
@@ -521,5 +524,5 @@ withjQuery1(function($, window){
 				.append($msg);
 			//alert('如果使用自动提交订单功能，请在确认订单正确无误后，再点击自动提交按钮！');
 		}
-	});
+	};
 }, true);
