@@ -120,13 +120,84 @@ withjQuery1(function($, window){
 	function query() {
 
 		//query
+        var maxIncreaseDay  = 0 ;
+        var start_autoIncreaseDay = null ;
+        var index_autoIncreaseDay = 1 ;
+        var pools_autoIncreaseDay = []  ;
+        function  __reset_autoIncreaseDays(){
+            maxIncreaseDay   = parseInt( document.getElementById('autoIncreaseDays').value ) || 1 ;
+            if( maxIncreaseDay > 10 ) {
+                maxIncreaseDay  = 10 ;
+            }
+            document.getElementById('autoIncreaseDays').value   = maxIncreaseDay ;
+            start_autoIncreaseDay   = null ;
+            $('#app_next_day,#app_pre_day').addClass('disabled').css('color', '#aaa' );
+        }
+        function  __unset_autoIncreaseDays(){
+            if( start_autoIncreaseDay ) {
+                document.getElementById('startdatepicker').value    = start_autoIncreaseDay ;
+                start_autoIncreaseDay   = null ;
+            }
+            $('#app_next_day,#app_pre_day').removeClass('disabled').css('color', '#000' );
+        }
+        function __date_format( date ) {
+                var y   = date.getFullYear() ;
+                var m   = date.getMonth() + 1 ;
+                var d   =  date.getDate() ;
+                if( m <= 9 ) {
+                    m = '0' + String( m ) ;
+                } else {
+                    m = String(  m ) ;
+                }
+                if( d <= 9 ) {
+                    d = '0' + String(  d ) ;
+                } else {
+                    d = String( d );
+                }
+                return  String(y) + '-' + m + '-' + d ;
+        }
+        function __date_parse(txt){
+                var a  =  $.map(txt.replace(/^\D+/, '').replace(/\D$/, '' ).split(/\D+0?/) , function(i){
+                    return parseInt(i) ;
+                }) ;
+                a[1]    -= 1 ;
+                var   date  = new Date;
+                date.setFullYear(  a[0]    ) ;
+                date.setMonth( a[1]  , a[2]  ) ;
+                date.setDate( a[2] ) ;
+                return date ;
+        }
+        function  __set_autoIncreaseDays() {
+            if( !start_autoIncreaseDay ) {
+                start_autoIncreaseDay   =  document.getElementById('startdatepicker').value ;
+                var date = __date_parse(start_autoIncreaseDay);
+                pools_autoIncreaseDay  = new Array() ;
+                for(var i = 0 ; i < maxIncreaseDay  ; i++) {
+                    pools_autoIncreaseDay.push(  __date_format(date) ) ;
+                    date.setTime(  date.getTime() + 3600 * 24 * 1000 ) ;
+                }
+                index_autoIncreaseDay = 1 ; 
+                return ;
+            }
+            if( index_autoIncreaseDay >= pools_autoIncreaseDay.length ) {
+                index_autoIncreaseDay   = 0 ;
+            }
+            var value   = pools_autoIncreaseDay[index_autoIncreaseDay++];
+             document.getElementById('startdatepicker').value   = value ;
+        }
+        function getTimeLimitValues(){
+            return $.map(  [ $('#startTimeHFrom').val()  , $('#startTimeMFrom').val(), $('#startTimeHTo').val(), $('#startTimeMTo').val() ] , function(val){
+                return parseInt(val) || 0 ;
+            }) ;
+        }
+        
 		var isTicketAvailable = false;
-
 		var firstRemove = false;
 
 		window.$ && window.$(".obj:first").ajaxComplete(function() {
+            var  _timeLimit = getTimeLimitValues();
 			$(this).find("tr").each(function(n, e) {
-				if(checkTickets(e)){
+				if(checkTickets(e, _timeLimit, n )){
 					isTicketAvailable = true;
 					highLightRow(e);
 				}	
@@ -158,6 +229,7 @@ withjQuery1(function($, window){
 		var doQuery = function() {
 			displayQueryTimes(queryTimes++);
 			firstRemove = true;
+            __set_autoIncreaseDays();
 			document.getElementById(isStudentTicket ? "stu_submitQuery" : "submitQuery").click();
 		}
 
@@ -166,7 +238,8 @@ withjQuery1(function($, window){
 		var $specialOnly = $("<label style='margin-left:10px;color: blue;'><input type='checkbox'  id='__chkspecialOnly'/>仅显示限定车次<label>");
 		var $includeCanOder = $("<label style='margin-right:10px;color: blue;'><input type='checkbox' id='__chkIncludeCanOder'/>显示可预定车次<label>");
 		//add by 冯岩 end 2012-01-18
-		var checkTickets = function(row) {
+		var checkTickets = function(row, time_limit , row_index ) {
+
 			var hasTicket = false;
 			var v1 = $special.val();			
 			var removeOther = $("#__chkspecialOnly").attr("checked");
@@ -201,8 +274,29 @@ withjQuery1(function($, window){
 			if( $(row).find("td input.yuding_x[type=button]").length ) {
 				return false;
 			}
-
-			$("td", row).each(function(i, e) {
+           
+            var cells  = $(row).find("td") ;
+            if( cells.length < 5 ) {
+                return false ;
+            }
+            var _start_time = $.map(  $(cells[1]).text().replace(/^\D+|\D+$/, '').split(/\D+0?/) , function(val){
+               return parseInt(val) || 0 ; 
+            }) ;
+            
+            while( _start_time.length > 2 ) {
+                _start_time.shift() ; // remove station name include number 
+            }
+            if( _start_time[0] < time_limit[0] ||  _start_time[0]  > time_limit[2] ) {
+                return false ;
+            }
+            if( _start_time[0] == time_limit[0] && _start_time[1]  <  time_limit[1] ){
+                return false ;
+            }
+            if( _start_time[0] == time_limit[2] && _start_time[1]  >  time_limit[3] ){
+                return false ;
+            }
+            
+			cells.each(function(i, e) {
 				if(ticketType[i-1]) {
 					var info = $.trim($(e).text());
 					if(info != "--" && info != "无") {
@@ -250,15 +344,22 @@ withjQuery1(function($, window){
 		var ui = $("<div>请先选择好出发地，目的地，和出发时间。&nbsp;&nbsp;&nbsp;</div>")
 			.append(
 				$("<input id='isStudentTicket' type='checkbox' />").change(function(){
-					isStudentTicket = this.checked;
+					isStudentTicket = this.checked ;
 				})
 			)
 			.append(
 				$("<label for='isStudentTicket'></label>").html("学生票&nbsp;&nbsp;")
 			)
+            .append(
+				$("<input id='autoIncreaseDays' type='text' value='1'  maxLength=2 style='width:18px;' />") 
+			)
+			.append(
+				$("<label for='autoIncreaseDays'></label>").html("天循环&nbsp;&nbsp;")
+			)
 			.append(
 				$("<button style='padding: 5px 10px; background: #2CC03E;border-color: #259A33;border-right-color: #2CC03E;border-bottom-color:#2CC03E;color: white;border-radius: 5px;text-shadow: -1px -1px 0 rgba(0, 0, 0, 0.2);'/>").attr("id", "refreshButton").html("开始刷票").click(function() {
 					if(!isAutoQueryEnabled) {
+                        __reset_autoIncreaseDays() ;
 						isTicketAvailable = false;
 						if(audio && !audio.paused) audio.pause();
 						isAutoQueryEnabled = true;
@@ -266,6 +367,7 @@ withjQuery1(function($, window){
 						this.innerHTML="停止刷票";
 					}
 					else {
+                        __unset_autoIncreaseDays();
 						isAutoQueryEnabled = false;
 						this.innerHTML="开始刷票";
 					}
@@ -306,9 +408,68 @@ withjQuery1(function($, window){
 		var container = $(".cx_title_w:first");
 		container.length ?
 			ui.insertBefore(container) : ui.appendTo(document.body);
-
+        
+        $('<div style="position:relative;top:0px; left:0px; height:0px; width:1px; overflow:visiable; background-color:#ff0;"></div>')
+                .append(
+                        $('<a id="app_pre_day" style="position:absolute;top:26px; left:2px; width:40px; color:#000;">前一天</a>').click(function() {
+                            if( $(this).hasClass("disabled") ) {
+                                return false ;
+                            }
+                            var date = __date_parse( document.getElementById('startdatepicker').value );
+                            date.setTime(  date.getTime() - 3600 * 24 * 1000 ) ;
+                            document.getElementById('startdatepicker').value    =  __date_format(date)  ;
+                            return false;
+                        })
+                    )
+                .append(
+                        $('<a id="app_next_day"  style="position:absolute;top:26px; left:114px; width:40px; color:#000;">下一天</a>').click(function() {
+                            if( $(this).hasClass("disabled") ) {
+                                return false ;
+                            }
+                            var date = __date_parse( document.getElementById('startdatepicker').value );
+                            date.setTime(  date.getTime() + 3600 * 24 * 1000 ) ;
+                            document.getElementById('startdatepicker').value    =  __date_format(date)  ;
+                            return false;
+                        })
+                    )
+                .insertBefore( $('#startdatepicker') ) ;
+  
+        setTimeout(function(){
+            var box = $('<div style="position:relative;top:2px; left:0px; width:100px; height:18px; line-height:18px;  font-size:12px; padding:0px; overflow:hidden;"></div>') ;
+            function makeSelect(id, max_value, default_value){
+                var element  = $('<select id="' + id + '" style="margin:-2px 0px 0px -5px;padding:0px;font-size:12px; line-height:100%; "></select>') ;
+                for(var i = 0; i <= max_value ; i++) {
+                    element.append(
+                       $('<option value="' + i + '" style="padding:0px;margin:0px;font-size:12px; line-height:100%;" ' + ( default_value == i ? ' selected="selected" ' : '' ) + '>' + ( i <= 9 ? '0' + i : i ) + '</option>' )
+                    )
+                }
+                box.append(
+                    $('<div style="width:18px; padding:0px; overflow:hidden; float:left;"></div>') .append(element)
+                );
+                return element ;
+            }
+            function check(evt){
+                var tl  = getTimeLimitValues() ;
+                if( tl[0] > tl[2] || (tl[0] == tl[2]  && tl[1] > tl[3]) ) {
+                    alert('最早发车时间必须早于最晚发车时间，请重新选择！') ;
+                    return false ;
+                }
+            }
+            makeSelect('startTimeHFrom' , 23 ).change(check) ;
+            box.append( $('<div style="float:left;">:</div>')) ;
+            makeSelect('startTimeMFrom' , 59 ).change(check) ;
+            box.append( $('<div style="float:left;padding:0px 1px;">--</div>')) ;
+            makeSelect('startTimeHTo' , 23, 23 ).change(check) ;
+            box.append( $('<div style="float:left;">:</div>')) ;
+            makeSelect('startTimeMTo' , 59, 59 ).change(check) ;
+            
+            box.insertAfter(  $('#startTime') )
+   
+        }, 10 ) ;
+        
 		//Ticket type selector & UI
 		var ticketType = new Array();
+        var checkbox_list   = new Array();
 		$(".hdr tr:eq(2) td").each(function(i,e) {
 			ticketType.push(false);
 			if(i<3) return;
@@ -319,7 +480,14 @@ withjQuery1(function($, window){
 			c.change(function() {
 				ticketType[this.ticketTypeId] = this.checked;
 			}).appendTo(e);
+            checkbox_list.push(c);
 		});
+        $.each([1, 2 ], function(){
+            var c   = checkbox_list.pop() ;
+            c[0].checked    = false ;
+            ticketType[ c[0].ticketTypeId ] = this.checked ;
+        });
+        delete checkbox_list ;
 	}
 
 	route("querySingleAction.do", query);
@@ -535,7 +703,7 @@ withjQuery1(function($, window){
 			//日期可选
 			$("td.bluetext:first").html('<input type="text" name="orderRequest.train_date" value="' +$("#start_date").val()+'" id="startdatepicker" style="width: 150px;" class="input_20txt"  onfocus="WdatePicker({firstDayOfWeek:1})" />');
 			$("#start_date").remove();
-
+			 
 			$(".tj_btn").append($("<a style='padding: 5px 10px; background: #2CC03E;border-color: #259A33;border-right-color: #2CC03E;border-bottom-color:#2CC03E;color: white;border-radius: 5px;text-shadow: -1px -1px 0 rgba(0, 0, 0, 0.2);'></a>").attr("id", "refreshButton").html("自动提交订单").click(function() {
 				//alert('开始自动提交订单，请点确定后耐心等待！');
 				if( this.innerHTML.indexOf("自动提交订单") == -1 ){
@@ -558,7 +726,7 @@ withjQuery1(function($, window){
 				}))
 				.append($msg);
 			//alert('如果使用自动提交订单功能，请在确认订单正确无误后，再点击自动提交按钮！');
-
+			
 			//铁道路修改验证码规则后 优化 by 冯岩
 			$("#rand").bind('keydown', function (e) {
 				var key = e.which;
