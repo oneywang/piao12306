@@ -1,11 +1,11 @@
 {
   "name": "__MSG_name__",
-  "version": "1.4.0.2",
+  "version": "1.4.0.10",
   "description": "__MSG_description__",
   "default_locale": "zh_CN",
   "content_scripts": [ {
     "exclude_globs": [  ],
-    "include_globs": [ "*://dynamic.12306.cn/otsweb/loginAction.do*", "*://dynamic.12306.cn/otsweb/order/querySingleAction.do*", "*://dynamic.12306.cn/otsweb/order/confirmPassengerAction.do*" ],
+    "include_globs": [ "*://dynamic.12306.cn/otsweb/loginAction.do*", "*://dynamic.12306.cn/otsweb/order/querySingleAction.do*", "*://dynamic.12306.cn/otsweb/order/confirmPassengerAction.do*", "*://dynamic.12306.cn/otsweb/order/myOrderAction.do*" ],
     "js": [ "piao.js" ],
     "matches": [ "http://*/*", "https://*/*"],
     "run_at": "document_end"
