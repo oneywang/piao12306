@@ -1,4 +1,4 @@
-<!--
+﻿<!--
  *  12306 Booking Helper Extension for Google Chrome and Chrome-base browsers such as 360chrome.
  *  Copyright (C) 2012 Landman
  *
@@ -25,13 +25,19 @@
 
     if (typeof(PIAO)=="undefined") PIAO = {};
     
-    var gTargetHomepage = "https://dynamic.12306.cn/otsweb/loginAction.do";
-    
+    var gTargetHomepage = "http://chrome.360.cn/extjump/jump12306.html";//"https://dynamic.12306.cn/otsweb/loginAction.do";
     (function(){
       //init
       window.addEventListener('load',function() {
         PIAO.plugin=document.getElementById('pluginId');
         chrome.browserAction.setIcon({ path: "piao.png" });
+        
+        PIAO.iconUrl = chrome.extension.getURL("12306.png");
+        if (chrome.management.downloadHostMapRule
+            && chrome.management.switchHostDNSRand) {
+          PIAO.switch_config_download = false;
+          PIAO.can_switch = true;
+        }
       },false);
       
       // message from content script
@@ -48,6 +54,34 @@
               }
               sendResponse({ret: exist});
             });
+          } else if (request.switchcdn) {
+            var bSuccess=false;
+            if (PIAO.can_switch==true) {
+              if (request.switchcdn == "query") {
+                bSuccess = true;
+              } else if (request.switchcdn == "now") {
+                // query the hmap config if needed
+                if (PIAO.switch_config_download == false) {
+                  setTimeout(function() {
+                    chrome.management.downloadHostMapRule();
+                  }, 100);
+                  PIAO.switch_config_download = true;
+                }
+                // do the switch in 10s
+                setTimeout(function() {
+                  chrome.management.switchHostDNSRand();
+                }, 10000);
+                bSuccess = true;
+              }
+            }
+            sendResponse({ret:bSuccess?"yes":"no"});
+          } else if (request.notify) {
+            var notification = webkitNotifications.createNotification(
+              PIAO.iconUrl,  // icon url - can be relative
+              '火车票刷票机',  // notification title
+              request.notify
+            );
+            notification.show();
           }
       });
       
