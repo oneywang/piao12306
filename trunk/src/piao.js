@@ -286,9 +286,41 @@ withjQuery1(function($, window){
 		//hack into the validQueryButton function to detect query
 		var _delayButton = window.delayButton;
 
+		var g_last_query_time = null;
+		var g_ingore_doquery = false;
 		window.delayButton = function() {
 			_delayButton();
-			if(isAutoQueryEnabled) doQuery();
+			if (isAutoQueryEnabled) {
+			  var LEAST_PERIOD = 3000; //3s
+			  var now = new Date();
+			  now = now.getTime();//时间的毫秒数
+
+			  if (g_last_query_time == null) {
+			    // 直接刷新
+			    g_last_query_time = now;
+			    doQuery();
+			  } else {
+			    if (now > g_last_query_time) {
+			      if (now - g_last_query_time < LEAST_PERIOD) {
+			        if (g_ingore_doquery === false) {
+			          g_ingore_doquery = true;
+			          g_last_query_time = now + LEAST_PERIOD;
+			          setTimeout(function () {
+			            g_ingore_doquery = false;
+			            doQuery();
+			          }, LEAST_PERIOD);
+			        }
+			      } else {
+			        g_last_query_time = now;
+			        doQuery();
+			      }
+			    } else {
+			      // should not happen
+			      g_last_query_time = now;
+			      doQuery();
+			    }
+			  }
+			}
 		}
 
 	  //保存信息
@@ -811,10 +843,9 @@ withjQuery1(function($, window){
   
 	route("confirmPassengerAction.do?method=init", initAutoCommitOrder);
 function initAutoCommitOrder() {
-	var count = 0;
-	var breakFlag = 0;
+  var g_auto_commit_counter = 0;
 	var randCode = "";
-	var submitFlag = false;
+	var g_is_submitting = false;
 	var tourFlag = 'dc';
 	var randEl = $("#rand");
 
@@ -825,31 +856,48 @@ function initAutoCommitOrder() {
      * From: https://github.com/iccfish/12306_ticket_helper
 		 * Author: iFish@FishLee.net  
 		 */
-		//Auto select the first user
-		//if( !$("input._checkbox_class:checked").length ) {
-		//	try{
-		//		$("input._checkbox_class:first").attr("checked", true).click().attr("checked", true);
-		//	}catch(e){};
-		//}
+		
 	if ($(".error_text").length > 0 && parent.$("#orderForm").length > 0) {
 		parent.resubmitForm();
 
 		return;
 	}
 
+	function tryFillPassage() {
+	  return;// not work!
+	  //Auto select the first user
+	  if( !$("input._checkbox_class:checked").length ) {
+	  	try{
+	  		$("input._checkbox_class:first").attr("checked", true).click().attr("checked", true);
+	  	}catch(e){};
+	  }
+	}
+
+	//delayInvoke(null, tryFillPassage, 2000);
+
 	(function () {
 		/'(dc|fc|wc|gc)'/.exec($("div.tj_btn :button:eq(2)")[0].onclick + '');
 		tourFlag = RegExp.$1;
 	})();
 
+	function setCommitButtonText() {
+	  if (g_is_submitting)
+	    $("#btnAutoSubmit").html("提交中...");
+	  else
+	    $("#btnAutoSubmit").html("自动提交");
+	}
+
+  // stop the auto commit process!
 	function stop(msg) {
-		setCurOperationInfo(false, "错误 - " + msg);
+	  g_is_submitting = false;
+
+	  setCurOperationInfo(false, "出错 - 自动提交已停止！");
 		setTipMessage(msg);
+		setCommitButtonText();
 		$("div.tj_btn button, div.tj_btn input").each(function () {
 			this.disabled = false;
 			$(this).removeClass().addClass("long_button_u");
 		});
-		//$("#btnCancelAuto").hide();
 	}
 
 	var reloadCode = function () {
@@ -864,20 +912,16 @@ function initAutoCommitOrder() {
 		randEl[0].blur();
 		stopCheckCount();
 		if (!window.submit_form_check || !submit_form_check("confirmPassenger")) {
-			setCurOperationInfo(false, "您的表单没有填写完整!");
 			stop("请填写完整表单");
 			return;
 		}
-
-		count++;
-		setCurOperationInfo(true, "第 " + count + " 次提交");
-		if (breakFlag) {
+		
+		if (g_is_submitting===false) {
 			stop("已取消自动提交");
-			breakFlag = 0;
 			return;
 		}
-		//$("#btnCancelAuto").show().removeClass().addClass("long_button_u_down")[0].disabled = false; //阻止被禁用
-		breakFlag = 0;
+
+		++g_auto_commit_counter;
 		waitTimeTooLong_alert = false;
 
 		$("#confirmPassenger").ajaxSubmit({
@@ -887,7 +931,6 @@ function initAutoCommitOrder() {
 			dataType: "json",
 			success: function (data) {
 				if ('Y' != data.errMsg || 'N' == data.checkHuimd || 'N' == data.check608) {
-					setCurOperationInfo(false, data.msg || data.errMsg);
 					stop(data.msg || data.errMsg);
 					reloadCode();
 				}
@@ -896,104 +939,101 @@ function initAutoCommitOrder() {
         }
 			},
 			error: function (msg) {
-				setCurOperationInfo(false, "当前请求发生错误");
+				setCurOperationInfo(false, "当前请求发生错误，正在自动重试...");
 				delayInvoke(null, submitForm, 1000);
 			}
 		});
   }
   
-  function ajaxQueryQueueCount() {
-      var queryLeftData = {
-        train_date: $("#start_date").val(),
-        train_no: $("#train_no").val(),
-        station: $("#station_train_code").val(),
-        seat: $("#passenger_1_seat").val(),
-        from: $("#from_station_telecode").val(),
-        to: $("#to_station_telecode").val(),
-        ticket: $("#left_ticket").val()
-      };
-      $.ajax({
-        url: '/otsweb/order/confirmPassengerAction.do?method=getQueueCount' + '&' + Math.random(),
-        data: queryLeftData,
-        type: 'GET',
-        timeout: 10000,
-        dataType: 'json',
-        success: function (result) {
-          if (result.op_2) {
-            var errmsg = "排队人数过多，系统禁止排队，正在进行自动重试（排队人数=" + result.count + "）";
-            setCurOperationInfo(true, errmsg);
-            stop(errmsg);
-            delayInvoke(null, ajaxQueryQueueCount, 1000);
-            return;
-          }
-          submitConfirmOrder();
-        },
-        error: function () {delayInvoke(null, ajaxQueryQueueCount, 2000);}
-      });
+	function ajaxQueryQueueCount() {
+	  setCurOperationInfo(true, "正在自动查询排队人数....");
+    var queryLeftData = {
+      train_date: $("#start_date").val(),
+      train_no: $("#train_no").val(),
+      station: $("#station_train_code").val(),
+      seat: $("#passenger_1_seat").val(),
+      from: $("#from_station_telecode").val(),
+      to: $("#to_station_telecode").val(),
+      ticket: $("#left_ticket").val()
+    };
+    $.ajax({
+      url: '/otsweb/order/confirmPassengerAction.do?method=getQueueCount' + '&' + Math.random(),
+      data: queryLeftData,
+      type: 'GET',
+      timeout: 10000,
+      dataType: 'json',
+      success: function (result) {
+        if (result.op_2) {
+          setTipMessage("排队人数（" + result.count + "）过多，铁道部拒绝排队，正在自动重试插队...");
+          delayInvoke(null, ajaxQueryQueueCount, 1000);
+          return;
+        }
+        submitConfirmOrder();
+      },
+      error: function () {delayInvoke(null, ajaxQueryQueueCount, 2000);}
+    });
 	}
 
 	function submitConfirmOrder() {
-          //异步下单
-          var order_type = 'confirmSingleForQueueOrder'; //'dc' 单程
-          if (tourFlag == 'wc') {
-            // 异步下单-往程
-            order_type = 'confirmPassengerInfoGoForQueue';
-          } else if (tourFlag == 'fc') {
-            // 异步下单-返程
-            order_type = 'confirmPassengerInfoBackForQueue';
-          } else if (tourFlag == 'gc') {
-            // 异步下单-改签
-            order_type = 'confirmPassengerInfoResignForQueue';
-          }
-					jQuery.ajax({
-						url: '/otsweb/order/confirmPassengerAction.do?method=' + order_type,
-						data: $('#confirmPassenger').serialize(),
-						type: "POST",
-						timeout: 10000,
-						dataType: 'json',
-						success: function (msg) {
-							console.log(msg);
+	  setCurOperationInfo(true, "正在自动排队....");
+    //异步下单
+    var order_type = 'confirmSingleForQueueOrder'; //'dc' 单程
+    if (tourFlag == 'wc') {
+      // 异步下单-往程
+      order_type = 'confirmPassengerInfoGoForQueue';
+    } else if (tourFlag == 'fc') {
+      // 异步下单-返程
+      order_type = 'confirmPassengerInfoBackForQueue';
+    } else if (tourFlag == 'gc') {
+      // 异步下单-改签
+      order_type = 'confirmPassengerInfoResignForQueue';
+    }
+		$.ajax({
+			url: '/otsweb/order/confirmPassengerAction.do?method=' + order_type,
+			data: $('#confirmPassenger').serialize(),
+			type: "POST",
+			timeout: 10000,
+			dataType: 'json',
+			success: function (msg) {
+				console.log(msg);
+				var errmsg = msg.errMsg;
+				if (errmsg != 'Y') {
+				  if (errmsg.indexOf("包含未付款订单") != -1) {
+				    stop("包含未付款订单");
+						alert("您有未支付订单! 赶紧点“确定”去支付或取消了，否则无法继续提交订单。");
+						window.location.replace("/otsweb/order/myOrderAction.do?method=queryMyOrderNotComplete&leftmenu=Y");
+						return;
+					}
+					if (errmsg.indexOf("重复提交") != -1) {
+						stop("重复提交错误，已在自动更新令牌，需要您重新输入验证码（若多次仍无法提交订单，请重新订票！）");
+						reloadToken();
+						reloadCode();
+						return;
+					}
+					if (errmsg.indexOf("后台处理异常") != -1 || errmsg.indexOf("非法请求") != -1) {
+						stop("后台处理异常，请返回查询页重新订票！");
+						return;
+					}
+					if (errmsg.indexOf("包含排队中") != -1) {
+						waitingForQueueComplete();
+						return;
+					}
 
-							var errmsg = msg.errMsg;
-							if (errmsg != 'Y') {
-								if (errmsg.indexOf("包含未付款订单") != -1) {
-									alert("您有未支付订单! 等啥呢, 赶紧点确定支付去.");
-									window.location.replace("/otsweb/order/myOrderAction.do?method=queryMyOrderNotComplete&leftmenu=Y");
-									return;
-								}
-								if (errmsg.indexOf("重复提交") != -1) {
-									stop("重复提交错误，已刷新TOKEN，请重新输入验证码提交（若多次刷新TOKEN仍无法提交订单，请重新订票！）");
-									reloadToken();
-									reloadCode();
-									return;
-								}
-								if (errmsg.indexOf("后台处理异常") != -1 || errmsg.indexOf("非法请求") != -1) {
-									stop("后台处理异常，请返回查询页重新预定！");
-									return;
-								}
-								if (errmsg.indexOf("包含排队中") != -1) {
-									console.log("订单排队中，进入轮询状态");
-									waitingForQueueComplete();
-									return;
-								}
-
-								setCurOperationInfo(false, errmsg);
-								stop(errmsg);
-								reloadCode();
-							} else {
-								notify("订单提交成功, 正在等待队列完成操作，请及时注意订单状态");
-								waitingForQueueComplete();
+					stop(errmsg);
+					reloadCode();
+				} else {
+					waitingForQueueComplete();
 				}
 			},
 			error: function (msg) {
-				setCurOperationInfo(false, "当前请求发生错误，正在继续尝试");
+			  setCurOperationInfo(false, "请求排队出错，正在继续自动重试...");
 				delayInvoke(null, submitForm, 3000);
 			}
 		});
 	}
 
 	function reloadToken(submit) {
-		setCurOperationInfo(true, "正在刷新TOKEN....");
+		setCurOperationInfo(true, "正在自动更新令牌....");
     $.ajax({
       url: "/otsweb/order/confirmPassengerAction.do?method=init",
       data: null,
@@ -1002,11 +1042,11 @@ function initAutoCommitOrder() {
       dataType: "text",
       success: function (text) {
         if (!/TOKEN"\s*value="([a-f\d]+)"/i.test(text)) {
-          setCurOperationInfo(false, "无法获得TOKEN，正在重试");
+          setCurOperationInfo(false, "更新令牌失败，正在继续自动重试...");
           delayInvoke("#countEle", reloadToken, 1000);
         } else {
           var token = RegExp.$1;
-          setCurOperationInfo(false, "已获得新TOKEN。");
+          setCurOperationInfo(false, "成功更新令牌");
           $("input[name=org.apache.struts.taglib.html.TOKEN]").val(token);
         }
       },
@@ -1036,7 +1076,7 @@ function initAutoCommitOrder() {
 	}
   
 	function waitingForQueueComplete() {
-		setCurOperationInfo(true, "订单提交成功, 正在等待队列完成操作....");
+		setCurOperationInfo(true, "订单提交成功, 正在自动等待排队完成...");
 
 		$.ajax({
 			url: '/otsweb/order/myOrderAction.do?method=getOrderWaitTime&tourFlag=' + tourFlag + '&' + Math.random(),
@@ -1045,8 +1085,6 @@ function initAutoCommitOrder() {
 			timeout: 10000,
 			dataType: 'json',
 			success: function (json) {
-				console.log(json);
-
 				if (json.waitTime == -1 || json.waitTime == 0) {
 					//TODO：声音：赶紧去支付！
           notify("订票成功，可以付款了！");
@@ -1054,16 +1092,14 @@ function initAutoCommitOrder() {
 						window.location.replace("/otsweb/order/confirmPassengerAction.do?method=payOrder&orderSequence_no=" + json.orderId);
 					else window.location.replace('/otsweb/order/myOrderAction.do?method=queryMyOrderNotComplete&leftmenu=Y');
 				} else if (json.waitTime == -3) {
-					var msg = "很抱歉, 您的订单被12306取消了，请重新订票。";
+					var msg = "很抱歉, 您的本次订单提交已被铁道部取消，请重新订票。";
 					notify(msg);
-					setCurOperationInfo(false, msg);
 					stop(msg);
 					reloadCode();
 				} else if (json.waitTime == -2) {
-				  var msg = "很抱歉, 排队失败：" + json.msg + ', 请重新订票。';
+				  var msg = "很抱歉, 您的本次订单提交排队失败：" + json.msg + ', 请重新订票。';
 				  reloadToken();
 					notify(msg);
-					setCurOperationInfo(false, msg);
 					stop(msg);
 					reloadCode();
 				}
@@ -1088,49 +1124,54 @@ function initAutoCommitOrder() {
 				}
 			},
 			error: function (json) {
-				notify("请求发生异常，可能是登录状态不对，请验证。如果没有问题，请手动进入未完成订单页面查询。");
+				notify("请求发生异常，可能是登录状态不对，如果登录状态没有问题，请手动进入“未完成订单”页面查询。");
 				self.location.reload();
 			}
 		});
 	}
 
-	$("div.tj_btn").append("<button class='long_button_u_down' style='padding: 5px 10px; background: #2CC03E;border-color: #259A33;border-right-color: #2CC03E;border-bottom-color:#2CC03E;color: white;border-radius: 5px;text-shadow: -1px -1px 0 rgba(0, 0, 0, 0.2);' type='button' id='btnAutoSubmit'>自动提交</button>");//<button class='long_button_u_down' type='button' id='btnCancelAuto' style='display:none;'>取消自动</button>
+
+	$("div.tj_btn").append("<button class='long_button_u_down' style='padding: 5px 10px; margin: 0px 20px; background: #2CC03E;border-color: #259A33;border-right-color: #2CC03E;border-bottom-color:#2CC03E;color: white;border-radius: 5px;text-shadow: -1px -1px 0 rgba(0, 0, 0, 0.2);' type='button' id='btnAutoSubmit'>自动提交</button>");//<button class='long_button_u_down' type='button' id='btnCancelAuto' style='display:none;'>取消自动</button>
 	$("#btnAutoSubmit").click(function () {
-		count = 0;
-		breakFlag = 0;
-		submitFlag = true;
+	  if (g_is_submitting) {
+	    if ($("#btnAutoSubmit").html() != "正在努力") {
+	      $("#btnAutoSubmit").html("正在努力");
+	      setTimeout(setCommitButtonText, 3000);
+	    }
+	    return;
+	  }
+	  g_auto_commit_counter = 0;
+		g_is_submitting = true;
+		setCommitButtonText();
 		submitForm();
 	});
-	//$("#btnCancelAuto").click(function () {
-	//	$(this).hide();
-	//	breakFlag = 1;
-	//	submitFlag = false;
-	//});
 
 	randEl.keyup(function (e) {
 	  if (e.charCode == 13
-      || (randEl.val().length == 4)) submitForm(); // || randEl.val().length == 4
+      || (randEl.val().length == 4)) {
+	    $("#btnAutoSubmit").click();
+	  }
 	});
 
 	//清除上次保存的预定信息
 	var lastform = null;
 	if (parent) {
 		lastform = parent.$("#orderForm");
-		lastform.attr("success", "1");
+		if (lastform) lastform.attr("success", "1");
 	}
 
 	//进度提示框
 	$("table.table_qr tr:last").before("<tr><td style='border-top:1px dotted #ccc;height:100px;' colspan='9' id='orderCountCell'></td></tr><tr><td style='border-top:1px dotted #ccc;' colspan='9'><ul id='tipScript'>" +
-	"<li class='fish_clock' id='countEle' style='font-weight:bold;'>等待操作</li>" +
-	"<li style='color:green;'><strong>操作信息</strong>：<span>--</span></li>" +
-	"<li style='color:green;'><strong>最后操作时间</strong>：<span>--</span></li></ul></td></tr>");
+	"<li id='countEle' style='font-weight:bold; color:#EA5200;'>等待操作</li>" +
+	"<li style='color:#EA5200;'><strong>提示信息</strong>：<span>--</span></li>" +
+	"<li style='color:black;'><strong>提示时间</strong>：<span>--</span></li></ul></td></tr>");
 
-	var tip = $("#tipScript li");
-	var errorCount = 0;
+	var ele_tip_msg_ = $("#tipScript li");
+	var ele_cur_op_ = $("#countEle");
 
+  // show operation detail: running is useless
 	function setCurOperationInfo(running, msg) {
-		var ele = $("#countEle");
-		ele.removeClass().addClass(running ? "fish_running" : "fish_clock").html(msg || (running ? "提交中……" : "等待中……"));
+	  ele_cur_op_.html("第 " + g_auto_commit_counter + " 次提交：" + msg);
 	}
 
   function getTimeInfo() {
@@ -1138,12 +1179,13 @@ function initAutoCommitOrder() {
 		return d.getHours() + ":" + (d.getMinutes() < 10 ? "0" : "") + d.getMinutes() + ":" + (d.getSeconds() < 10 ? "0" : "") + d.getSeconds();
 	}
   
+  // show error message detail
 	function setTipMessage(msg) {
-		tip.eq(2).find("span").html(getTimeInfo());
-		tip.eq(1).find("span").html(msg);
+	  ele_tip_msg_.eq(2).find("span").html(getTimeInfo());
+	  ele_tip_msg_.eq(1).find("span").html(msg);
 	}
 
-  $(".table_qr tr:last").before("<tr><td colspan='9'><label><input type='checkbox' id='showHelp' /> 显示帮助</label></td></tr>");
+  $(".table_qr tr:last").before("<tr><td colspan='9'><label><input type='checkbox' id='showHelp' /> 显示帮助 </label></td></tr>");
 	document.getElementById("showHelp").checked = typeof (window.localStorage["showHelp"]) != 'undefined';
 	$("#showHelp").change(function () {
 		if (this.checked) {
@@ -1169,7 +1211,7 @@ function initAutoCommitOrder() {
 			if (checkCountStopped) return;
 
 			var html = [];
-			html.push("<span style='font-size:150%;color: green;'>本次列车余票最新排队情况（每2秒刷新一次）：</span>");
+			html.push("<span style='font-size:125%;color:red;'>本次列车余票最新排队情况（每2秒刷新一次直至您开始提交订单）：</span>");
 
 
 			allSeats.each(function () {
@@ -1232,7 +1274,7 @@ function initAutoCommitOrder() {
           } else {
             msg += "请您抓紧提交";
           }
-          msg += "&nbsp;&nbsp;&nbsp;&nbsp;(" + getTimeInfo() + ")";
+          msg += "&nbsp;&nbsp;&nbsp;&nbsp;（更新于：" + getTimeInfo() + "）";
 
           $("#queueStatus_" + type.id).html(msg);
           setTimeout(executeQueue, 2000);
