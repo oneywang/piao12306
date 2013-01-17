@@ -173,82 +173,95 @@ withjQuery1(function($, window){
 	function query() {
 
 		//query
-        var maxIncreaseDay  = 0 ;
-        var start_autoIncreaseDay = null ;
-        var index_autoIncreaseDay = 1 ;
-        var pools_autoIncreaseDay = []  ;
-        function  __reset_autoIncreaseDays(){
-            maxIncreaseDay   = parseInt( document.getElementById('autoIncreaseDays').value ) || 1 ;
-            if( maxIncreaseDay > 10 ) {
-                maxIncreaseDay  = 10 ;
-            }
-            document.getElementById('autoIncreaseDays').value   = maxIncreaseDay ;
+    var maxIncreaseDay  = 0 ;
+    var start_autoIncreaseDay = null ;
+    var index_autoIncreaseDay = 1 ;
+    var pools_autoIncreaseDay = []  ;
+    function  __reset_autoIncreaseDays(){
+        maxIncreaseDay   = parseInt( document.getElementById('autoIncreaseDays').value ) || 1 ;
+        if( maxIncreaseDay > 10 ) {
+            maxIncreaseDay  = 10 ;
+        }
+        document.getElementById('autoIncreaseDays').value   = maxIncreaseDay ;
+        start_autoIncreaseDay   = null ;
+        $('#app_next_day,#app_pre_day').addClass('disabled').css('color', '#aaa' );
+    }
+    function  __unset_autoIncreaseDays(){
+        if( start_autoIncreaseDay ) {
+            document.getElementById('startdatepicker').value    = start_autoIncreaseDay ;
             start_autoIncreaseDay   = null ;
-            $('#app_next_day,#app_pre_day').addClass('disabled').css('color', '#aaa' );
         }
-        function  __unset_autoIncreaseDays(){
-            if( start_autoIncreaseDay ) {
-                document.getElementById('startdatepicker').value    = start_autoIncreaseDay ;
-                start_autoIncreaseDay   = null ;
+        $('#app_next_day,#app_pre_day').removeClass('disabled').css('color', '#000' );
+    }
+    function __date_format( date ) {
+            var y   = date.getFullYear() ;
+            var m   = date.getMonth() + 1 ;
+            var d   =  date.getDate() ;
+            if( m <= 9 ) {
+                m = '0' + String( m ) ;
+            } else {
+                m = String(  m ) ;
             }
-            $('#app_next_day,#app_pre_day').removeClass('disabled').css('color', '#000' );
-        }
-        function __date_format( date ) {
-                var y   = date.getFullYear() ;
-                var m   = date.getMonth() + 1 ;
-                var d   =  date.getDate() ;
-                if( m <= 9 ) {
-                    m = '0' + String( m ) ;
-                } else {
-                    m = String(  m ) ;
-                }
-                if( d <= 9 ) {
-                    d = '0' + String(  d ) ;
-                } else {
-                    d = String( d );
-                }
-                return  String(y) + '-' + m + '-' + d ;
-        }
-        function __date_parse(txt){
-                var a  =  $.map(txt.replace(/^\D+/, '').replace(/\D$/, '' ).split(/\D+0?/) , function(i){
-                    return parseInt(i) ;
-                }) ;
-                a[1]    -= 1 ;
-                var   date  = new Date;
-                date.setFullYear(  a[0]    ) ;
-                date.setMonth( a[1]  , a[2]  ) ;
-                date.setDate( a[2] ) ;
-                return date ;
-        }
-        function  __set_autoIncreaseDays() {
-            if( !start_autoIncreaseDay ) {
-                start_autoIncreaseDay   =  document.getElementById('startdatepicker').value ;
-                var date = __date_parse(start_autoIncreaseDay);
-                pools_autoIncreaseDay  = new Array() ;
-                for(var i = 0 ; i < maxIncreaseDay  ; i++) {
-                    pools_autoIncreaseDay.push(  __date_format(date) ) ;
-                    date.setTime(  date.getTime() + 3600 * 24 * 1000 ) ;
-                }
-                index_autoIncreaseDay = 1 ; 
-                return ;
+            if( d <= 9 ) {
+                d = '0' + String(  d ) ;
+            } else {
+                d = String( d );
             }
-            if( index_autoIncreaseDay >= pools_autoIncreaseDay.length ) {
-                index_autoIncreaseDay   = 0 ;
-            }
-            var value   = pools_autoIncreaseDay[index_autoIncreaseDay++];
-             document.getElementById('startdatepicker').value   = value ;
-        }
-        function getTimeLimitValues(){
-            return $.map(  [ $('#startTimeHFrom').val()  , $('#startTimeMFrom').val(), $('#startTimeHTo').val(), $('#startTimeMTo').val() ] , function(val){
-                return parseInt(val) || 0 ;
+            return  String(y) + '-' + m + '-' + d ;
+    }
+    function __date_parse(txt){
+            var a  =  $.map(txt.replace(/^\D+/, '').replace(/\D$/, '' ).split(/\D+0?/) , function(i){
+                return parseInt(i) ;
             }) ;
+            a[1]    -= 1 ;
+            var   date  = new Date;
+            date.setFullYear(  a[0]    ) ;
+            date.setMonth( a[1]  , a[2]  ) ;
+            date.setDate( a[2] ) ;
+            return date ;
+    }
+    function __set_autoIncreaseDays() {
+      if (maxIncreaseDay == 1) {
+        // 1天循环的，直接使用当前框内的值
+        return;
+      }
+      // 非1天循环，则刷票期间用户选择的时间是无效的。应该禁止用户选择。
+      if( !start_autoIncreaseDay ) {
+        start_autoIncreaseDay   =  document.getElementById('startdatepicker').value ;
+        var date = __date_parse(start_autoIncreaseDay);
+        pools_autoIncreaseDay  = new Array() ;
+        for(var i = 0 ; i < maxIncreaseDay  ; i++) {
+            pools_autoIncreaseDay.push(  __date_format(date) ) ;
+            date.setTime(  date.getTime() + 3600 * 24 * 1000 ) ;
         }
-        
+        index_autoIncreaseDay = 1 ; 
+        return ;
+      }
+      if( index_autoIncreaseDay >= pools_autoIncreaseDay.length ) {
+        index_autoIncreaseDay   = 0 ;
+      }
+      var value   = pools_autoIncreaseDay[index_autoIncreaseDay++];
+      document.getElementById('startdatepicker').value   = value ;
+    }
+    function getTimeLimitValues(){
+        return $.map(  [ $('#startTimeHFrom').val()  , $('#startTimeMFrom').val(), $('#startTimeHTo').val(), $('#startTimeMTo').val() ] , function(val){
+            return parseInt(val) || 0 ;
+        }) ;
+    }
+
+    function setPref(name, value) {
+	    window.localStorage.setItem(name, value);
+	  }
+
+    function getPref(name) {
+	    return window.localStorage.getItem(name);
+    }
+
 		var isTicketAvailable = false;
 		var firstRemove = false;
 
 		window.$ && window.$(".obj:first").ajaxComplete(function() {
-            var  _timeLimit = getTimeLimitValues();
+      var  _timeLimit = getTimeLimitValues();
 			$(this).find("tr").each(function(n, e) {
 				if(checkTickets(e, _timeLimit, n )){
 					isTicketAvailable = true;
@@ -278,12 +291,46 @@ withjQuery1(function($, window){
 			if(isAutoQueryEnabled) doQuery();
 		}
 
+	  //保存信息
+		function saveTrainInfo() {
+		  if ($("#fromStationText")[0].disabled) return;
+		  setPref("ll_from_station_text", $("#fromStationText").val());
+		  setPref("ll_from_station_telecode", $("#fromStation").val());
+		  setPref("ll_to_station_text", $("#toStationText").val());
+		  setPref("ll_to_station_telecode", $("#toStation").val());
+		  setPref("ll_start_date", $("#startdatepicker").val());
+		  setPref("ll_start_time", $("#startTime").val());
+
+		}
+
+	  //回填信息
+		function fillTrainInfo() {
+		  var FROM_STATION_TEXT = getPref('ll_from_station_text');
+		  var FROM_STATION_TELECODE = getPref('ll_from_station_telecode');
+		  var TO_STATION_TEXT = getPref('ll_to_station_text');
+		  var TO_STATION_TELECODE = getPref('ll_to_station_telecode');
+		  var DEPART_DATE = getPref('ll_start_date');
+		  var DEPART_TIME = getPref('ll_start_time');
+
+		  if (FROM_STATION_TEXT) {
+		    $("#fromStationText").val(FROM_STATION_TEXT);
+		    $("#fromStation").val(FROM_STATION_TELECODE);
+		    $("#toStationText").val(TO_STATION_TEXT);
+		    $("#toStation").val(TO_STATION_TELECODE);
+		    $("#startdatepicker").val(DEPART_DATE);
+		    $("#startTime").val(DEPART_TIME);
+		  }
+		}
+
+		fillTrainInfo();
+		$("#submitQuery, #stu_submitQuery").click(saveTrainInfo);
+
 		//Trigger the button
 		var doQuery = function() {
 			displayQueryTimes(queryTimes++);
 			firstRemove = true;
-            __set_autoIncreaseDays();
-			document.getElementById(isStudentTicket ? "stu_submitQuery" : "submitQuery").click();
+      __set_autoIncreaseDays();
+      document.getElementById(isStudentTicket ? "stu_submitQuery" : "submitQuery").click();
 		}
 
 		var $special = $("<input type='text' />")	
@@ -373,7 +420,7 @@ withjQuery1(function($, window){
 			if(window.Audio) {
 				if(!audio) {
           //chrome-extension://hilbcakjhlicioieapgbkfmhhejogjik/dingpiao.wav
-					audio = new Audio("chrome-extension://jaojfpnikjjobngdfbgbhflfooidihmg/cha_nv.mp3");//("http://www.w3school.com.cn/i/song.ogg");//chrome.extension.getURL("dingpiao.wav");
+				  audio = new Audio("chrome-extension://jaojfpnikjjobngdfbgbhflfooidihmg/song.ogg");//("http://www.w3school.com.cn/i/song.ogg");//chrome.extension.getURL("dingpiao.wav");
 					audio.loop = true;
 				}
 				audio.play();
@@ -413,7 +460,7 @@ withjQuery1(function($, window){
 			.append(
 				$("<button style='padding: 5px 10px; background: #2CC03E;border-color: #259A33;border-right-color: #2CC03E;border-bottom-color:#2CC03E;color: white;border-radius: 5px;text-shadow: -1px -1px 0 rgba(0, 0, 0, 0.2);'/>").attr("id", "refreshButton").html("开始刷票").click(function() {
 					if(!isAutoQueryEnabled) {
-                        __reset_autoIncreaseDays() ;
+            __reset_autoIncreaseDays() ;
 						isTicketAvailable = false;
 						if(audio && !audio.paused) audio.pause();
 						isAutoQueryEnabled = true;
@@ -421,7 +468,7 @@ withjQuery1(function($, window){
 						this.innerHTML="停止刷票";
 					}
 					else {
-                        __unset_autoIncreaseDays();
+            __unset_autoIncreaseDays();
 						isAutoQueryEnabled = false;
 						this.innerHTML="开始刷票";
 					}
@@ -433,7 +480,7 @@ withjQuery1(function($, window){
 				)
 			)
       .append(
-        $("<hr style='margin:2px 0 2px 0' />")
+        '<hr style="margin: 2px 0 2px 0;color:gray;border-style:dashed;" size="1"/>'
       )
 			.append( 
 				$("<div>限定出发车次：</div>")
@@ -443,7 +490,7 @@ withjQuery1(function($, window){
 					.append( "<span style='vertical-align:middle; margin-left: 10px;'>不限制不填写，限定多次用逗号分割，例如: G32,G34</span>" )
 			)
       .append(
-        $("<hr style='margin:2px 0 2px 0' />")
+        '<hr style="margin: 2px 0 2px 0;color:gray;border-style:dashed;" size="1"/>'
       )
 			.append( 
 				//Custom ticket type
@@ -473,7 +520,7 @@ withjQuery1(function($, window){
 					}))
 			)
       .append(
-        $("<hr style='margin:2px 0 2px 0' />")
+        '<hr style="margin: 5px 0 2px 0;color:gray;border-style:dashed;" size="1"/>'
       );
 		var container = $(".cx_title_w:first");
 		container.length ?
@@ -643,7 +690,9 @@ withjQuery1(function($, window){
 					if ( msg.indexOf('请输入正确的验证码') > -1 ) {
             $('#refreshButton').html("("+count_total+")次登录，已暂停，点击继续");
             is_retry_logining = false;
-						alert('请换一张验证码并重新输入正确的验证码！');
+            alert('请换一张验证码并重新输入正确的验证码！');
+            $("#img_rrand_code").click();
+            $("#randCode").val("")[0].select();
 					} else if ( msg.indexOf('当前访问用户过多') > -1 ){
 						reLogin();
 					} else if( msg.match(/var\s+isLogin\s*=\s*true/i) ) {
@@ -748,6 +797,14 @@ withjQuery1(function($, window){
     if ($("#subLink").length > 0) {
       alert('如果使用自动登录功能，请务必输入正确的用户名、密码及验证码后点击自动登录，扩展会自动尝试登录！扩展将智能调整重试时间，以避免对服务器压力过大。');
     }
+
+    $("#randCode").keyup(function (e) {
+      e = e || event;
+      if (e.charCode == 13 || ($("#randCode").val().length == 4 && $("#UserName").val().length && $("#password").val().length)) {
+        $("#refreshButton").click();
+      }
+    });
+
 	});
   
   
@@ -792,7 +849,7 @@ function initAutoCommitOrder() {
 			this.disabled = false;
 			$(this).removeClass().addClass("long_button_u");
 		});
-		$("#btnCancelAuto").hide();
+		//$("#btnCancelAuto").hide();
 	}
 
 	var reloadCode = function () {
@@ -819,7 +876,7 @@ function initAutoCommitOrder() {
 			breakFlag = 0;
 			return;
 		}
-		$("#btnCancelAuto").show().removeClass().addClass("long_button_u_down")[0].disabled = false; //阻止被禁用
+		//$("#btnCancelAuto").show().removeClass().addClass("long_button_u_down")[0].disabled = false; //阻止被禁用
 		breakFlag = 0;
 		waitTimeTooLong_alert = false;
 
@@ -1036,29 +1093,22 @@ function initAutoCommitOrder() {
 		});
 	}
 
-	$("div.tj_btn").append("<button class='long_button_u_down' style='padding: 5px 10px; background: #2CC03E;border-color: #259A33;border-right-color: #2CC03E;border-bottom-color:#2CC03E;color: white;border-radius: 5px;text-shadow: -1px -1px 0 rgba(0, 0, 0, 0.2);' type='button' id='btnAutoSubmit'>自动提交</button> <button class='long_button_u_down' type='button' id='btnCancelAuto' style='display:none;'>取消自动</button>");
+	$("div.tj_btn").append("<button class='long_button_u_down' style='padding: 5px 10px; background: #2CC03E;border-color: #259A33;border-right-color: #2CC03E;border-bottom-color:#2CC03E;color: white;border-radius: 5px;text-shadow: -1px -1px 0 rgba(0, 0, 0, 0.2);' type='button' id='btnAutoSubmit'>自动提交</button>");//<button class='long_button_u_down' type='button' id='btnCancelAuto' style='display:none;'>取消自动</button>
 	$("#btnAutoSubmit").click(function () {
 		count = 0;
 		breakFlag = 0;
 		submitFlag = true;
 		submitForm();
 	});
-	$("#btnCancelAuto").click(function () {
-		$(this).hide();
-		breakFlag = 1;
-		submitFlag = false;
-	});
-  
-  $("#rand").bind('keydown', function (e) {
-				var key = e.which;
-				if (key == 13) {
-					$("#refreshButton").click();
-				}
-			});
-      
+	//$("#btnCancelAuto").click(function () {
+	//	$(this).hide();
+	//	breakFlag = 1;
+	//	submitFlag = false;
+	//});
+
 	randEl.keyup(function (e) {
-		if (!submitFlag) return;
-		if (e.charCode == 13) submitForm(); // || randEl.val().length == 4
+	  if (e.charCode == 13
+      || (randEl.val().length == 4)) submitForm(); // || randEl.val().length == 4
 	});
 
 	//清除上次保存的预定信息
@@ -1071,7 +1121,7 @@ function initAutoCommitOrder() {
 	//进度提示框
 	$("table.table_qr tr:last").before("<tr><td style='border-top:1px dotted #ccc;height:100px;' colspan='9' id='orderCountCell'></td></tr><tr><td style='border-top:1px dotted #ccc;' colspan='9'><ul id='tipScript'>" +
 	"<li class='fish_clock' id='countEle' style='font-weight:bold;'>等待操作</li>" +
-	"<li style='color:green;'><strong>操作信息</strong>：<span>休息中</span></li>" +
+	"<li style='color:green;'><strong>操作信息</strong>：<span>--</span></li>" +
 	"<li style='color:green;'><strong>最后操作时间</strong>：<span>--</span></li></ul></td></tr>");
 
 	var tip = $("#tipScript li");
@@ -1264,7 +1314,7 @@ function initAutoCommitOrder() {
 						var audio;
 						if( window.Audio ) {
               //chrome-extension://hilbcakjhlicioieapgbkfmhhejogjik/fukuan.wav
-							audio = new Audio("chrome-extension://jaojfpnikjjobngdfbgbhflfooidihmg/cha_nv.mp3");//("http://www.w3school.com.cn/i/song.ogg");//chrome.extension.getURL("fukuan.wav");
+						  audio = new Audio("chrome-extension://jaojfpnikjjobngdfbgbhflfooidihmg/song.ogg");//("http://www.w3school.com.cn/i/song.ogg");//chrome.extension.getURL("fukuan.wav");
 							audio.loop = true;
 							audio.play();
 						}
