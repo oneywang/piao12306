@@ -962,7 +962,7 @@ function initAutoCommitOrder() {
 									return;
 								}
 								if (errmsg.indexOf("重复提交") != -1) {
-									stop("重复提交错误，已刷新TOKEN，请重新输入验证码提交");
+									stop("重复提交错误，已刷新TOKEN，请重新输入验证码提交（若多次刷新TOKEN仍无法提交订单，请重新订票！）");
 									reloadToken();
 									reloadCode();
 									return;
@@ -1006,7 +1006,7 @@ function initAutoCommitOrder() {
           delayInvoke("#countEle", reloadToken, 1000);
         } else {
           var token = RegExp.$1;
-          setCurOperationInfo(false, "已获得TOKEN - " + token);
+          setCurOperationInfo(false, "已获得新TOKEN。");
           $("input[name=org.apache.struts.taglib.html.TOKEN]").val(token);
         }
       },
@@ -1060,7 +1060,7 @@ function initAutoCommitOrder() {
 					stop(msg);
 					reloadCode();
 				} else if (json.waitTime == -2) {
-				  var msg = "很抱歉, 排队失败 : " + json.msg + ', 请重新输入验证码提交。';
+				  var msg = "很抱歉, 排队失败：" + json.msg + ', 请重新订票。';
 				  reloadToken();
 					notify(msg);
 					setCurOperationInfo(false, msg);
