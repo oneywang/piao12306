@@ -897,7 +897,7 @@ function initAutoCommitOrder() {
 			},
 			error: function (msg) {
 				setCurOperationInfo(false, "当前请求发生错误");
-				delayInvoke(null, submitForm, 3000);
+				delayInvoke(null, submitForm, 1000);
 			}
 		});
   }
@@ -920,10 +920,10 @@ function initAutoCommitOrder() {
         dataType: 'json',
         success: function (result) {
           if (result.op_2) {
-            var errmsg = "排队人数过多，系统禁止排队，可以输入验证码重试（排队人数=" + result.count + "）";
-            setCurOperationInfo(false, errmsg);
+            var errmsg = "排队人数过多，系统禁止排队，正在进行自动重试（排队人数=" + result.count + "）";
+            setCurOperationInfo(true, errmsg);
             stop(errmsg);
-            reloadCode();
+            delayInvoke(null, ajaxQueryQueueCount, 1000);
             return;
           }
           submitConfirmOrder();
@@ -986,7 +986,7 @@ function initAutoCommitOrder() {
 				}
 			},
 			error: function (msg) {
-				setCurOperationInfo(false, "当前请求发生错误");
+				setCurOperationInfo(false, "当前请求发生错误，正在继续尝试");
 				delayInvoke(null, submitForm, 3000);
 			}
 		});
@@ -1054,13 +1054,14 @@ function initAutoCommitOrder() {
 						window.location.replace("/otsweb/order/confirmPassengerAction.do?method=payOrder&orderSequence_no=" + json.orderId);
 					else window.location.replace('/otsweb/order/myOrderAction.do?method=queryMyOrderNotComplete&leftmenu=Y');
 				} else if (json.waitTime == -3) {
-					var msg = "很抱歉, 您的订单被12306撤销了，请重新订票。";
+					var msg = "很抱歉, 您的订单被12306取消了，请重新订票。";
 					notify(msg);
 					setCurOperationInfo(false, msg);
 					stop(msg);
 					reloadCode();
 				} else if (json.waitTime == -2) {
-					var msg = "很抱歉, 排队失败 : " + json.msg + ', 请重新订票。';
+				  var msg = "很抱歉, 排队失败 : " + json.msg + ', 请重新输入验证码提交。';
+				  reloadToken();
 					notify(msg);
 					setCurOperationInfo(false, msg);
 					stop(msg);
@@ -1168,7 +1169,7 @@ function initAutoCommitOrder() {
 			if (checkCountStopped) return;
 
 			var html = [];
-			html.push("<span style='font-size:150%;color: #48CE58;'>本车次最新排队情况（每2秒刷新一次）：</span>");
+			html.push("<span style='font-size:150%;color: green;'>本次列车余票最新排队情况（每2秒刷新一次）：</span>");
 
 
 			allSeats.each(function () {
