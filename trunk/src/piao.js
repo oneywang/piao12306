@@ -134,7 +134,7 @@ withjQuery1(function($, window){
             }
           }
         } else {
-          notify("订单排队失败了，请重新订票。");
+          notify("订单排队失败了，请重新订票或尝试手工提交！");
           clearInterval(pay_timer);
           pay_timer = null;
         }
@@ -640,7 +640,7 @@ withjQuery1(function($, window){
 	}
 
 	route("querySingleAction.do", query);
-	route("myOrderAction.do?method=resign", query);
+	//route("myOrderAction.do?method=resign", query);//bugs
   route("confirmPassengerResignAction.do?method=cancelOrderToQuery", query);
   route("payConfirmOnlineSingleAction.do?method=cancelOrder", query);
 	route("orderAction.do?method=cancelMyOrderNotComplete", query);
@@ -863,18 +863,6 @@ function initAutoCommitOrder() {
 		return;
 	}
 
-	function tryFillPassage() {
-	  return;// not work!
-	  //Auto select the first user
-	  if( !$("input._checkbox_class:checked").length ) {
-	  	try{
-	  		$("input._checkbox_class:first").attr("checked", true).click().attr("checked", true);
-	  	}catch(e){};
-	  }
-	}
-
-	//delayInvoke(null, tryFillPassage, 2000);
-
 	(function () {
 		/'(dc|fc|wc|gc)'/.exec($("div.tj_btn :button:eq(2)")[0].onclick + '');
 		tourFlag = RegExp.$1;
@@ -964,8 +952,8 @@ function initAutoCommitOrder() {
       dataType: 'json',
       success: function (result) {
         if (result.op_2) {
-          setTipMessage("排队人数（" + result.count + "）过多，铁道部拒绝排队，正在自动重试插队...");
-          delayInvoke(null, ajaxQueryQueueCount, 1000);
+          stop("排队人数（" + result.count + "）过多，铁道部拒绝排队，请重新订票或尝试手工提交！");
+          //delayInvoke(null, ajaxQueryQueueCount, 1000);
           return;
         }
         submitConfirmOrder();
@@ -1005,13 +993,13 @@ function initAutoCommitOrder() {
 						return;
 					}
 					if (errmsg.indexOf("重复提交") != -1) {
-						stop("重复提交错误，已在自动更新令牌，需要您重新输入验证码（若多次仍无法提交订单，请重新订票！）");
+					  stop("重复提交错误，已在自动更新令牌，需要您重新输入验证码（若多次仍无法提交订单，请重新订票或尝试手工提交！）");
 						reloadToken();
 						reloadCode();
 						return;
 					}
 					if (errmsg.indexOf("后台处理异常") != -1 || errmsg.indexOf("非法请求") != -1) {
-						stop("后台处理异常，请返回查询页重新订票！");
+					  stop("后台处理异常，请返回查询页重新订票或尝试手工提交！！");
 						return;
 					}
 					if (errmsg.indexOf("包含排队中") != -1) {
@@ -1092,12 +1080,12 @@ function initAutoCommitOrder() {
 						window.location.replace("/otsweb/order/confirmPassengerAction.do?method=payOrder&orderSequence_no=" + json.orderId);
 					else window.location.replace('/otsweb/order/myOrderAction.do?method=queryMyOrderNotComplete&leftmenu=Y');
 				} else if (json.waitTime == -3) {
-					var msg = "很抱歉, 您的本次订单提交已被铁道部取消，请重新订票。";
+				  var msg = "很抱歉, 您的本次订单提交已被铁道部取消，请重新订票或尝试手工提交！";
 					notify(msg);
 					stop(msg);
 					reloadCode();
 				} else if (json.waitTime == -2) {
-				  var msg = "很抱歉, 您的本次订单提交排队失败：" + json.msg + ', 请重新订票。';
+				  var msg = "很抱歉, 您的本次订单提交排队失败：" + json.msg + ', 请重新订票或尝试手工提交！';
 				  reloadToken();
 					notify(msg);
 					stop(msg);
@@ -1147,6 +1135,7 @@ function initAutoCommitOrder() {
 	});
 
 	randEl.keyup(function (e) {
+	  if (!document.getElementById("autoStartCommit").checked) return;
 	  if (e.charCode == 13
       || (randEl.val().length == 4)) {
 	    $("#btnAutoSubmit").click();
@@ -1159,6 +1148,14 @@ function initAutoCommitOrder() {
 		lastform = parent.$("#orderForm");
 		if (lastform) lastform.attr("success", "1");
 	}
+
+  //输入完即提交
+	$(".table_qr tr:last").before("<tr><td colspan='9'><label><input type='checkbox' id='autoStartCommit' /> 输入验证码后立刻开始自动提交（如果希望手工提交，请取消勾选）</label></td></tr>");
+	document.getElementById("autoStartCommit").checked = typeof (window.localStorage["ll_disableAutoStartCommit"]) == 'undefined';
+	$("#autoStartCommit").change(function () {
+	  if (this.checked) window.localStorage.removeItem("ll_disableAutoStartCommit");
+	  else window.localStorage.setItem("ll_disableAutoStartCommit", "1");
+	});
 
 	//进度提示框
 	$("table.table_qr tr:last").before("<tr><td style='border-top:1px dotted #ccc;height:100px;' colspan='9' id='orderCountCell'></td></tr><tr><td style='border-top:1px dotted #ccc;' colspan='9'><ul id='tipScript'>" +
@@ -1185,7 +1182,7 @@ function initAutoCommitOrder() {
 	  ele_tip_msg_.eq(1).find("span").html(msg);
 	}
 
-  $(".table_qr tr:last").before("<tr><td colspan='9'><label><input type='checkbox' id='showHelp' /> 显示帮助 </label></td></tr>");
+	$(".table_qr tr:last").before("<tr><td colspan='9'><label><input type='checkbox' id='showHelp' /> 显示帮助 </label></td></tr>");
 	document.getElementById("showHelp").checked = typeof (window.localStorage["showHelp"]) != 'undefined';
 	$("#showHelp").change(function () {
 		if (this.checked) {
@@ -1289,6 +1286,27 @@ function initAutoCommitOrder() {
 
 		beginCheck();
 	})();
+
+  //#region 自动选择联系人
+	function tryFillPassage() {
+	  if (!$("input._checkbox_class:checked").length) {
+	    try {
+	      $("input._checkbox_class:first").attr("checked", true).click().attr("checked", true);
+	    } catch (e) { };
+	  }
+	}
+
+	$(window).ajaxComplete(function (e, xhr, s) {
+	  if (s.url.indexOf("getPagePassengerAll") != -1) {
+	    tryFillPassage();
+	  }
+	});
+
+  //如果已经加载完成，那么直接选定
+	if ($("#showPassengerFilter div").length) {
+	  tryFillPassage();
+	}
+  //#endregion
 
 	(function () {
 		var obj = document.getElementById("rand");
